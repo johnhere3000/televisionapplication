@@ -18,6 +18,7 @@ services:
 ```
 #### Linux
 **⚠️ Running outside of Docker is not supported**
+
 You will need Python and Git installed before continuing. Depending on your distro, you may need to [setup a Python virtual environment](https://docs.python.org/3.12/library/venv.html).
 
 Clone the repository
