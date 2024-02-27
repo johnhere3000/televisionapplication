@@ -1,5 +1,5 @@
 # Television Application
-> Returns HLS stream links for any site using the very specific distribution structure that this is written for.
+> Returns HLS stream links for thetvapp.to
 
 ## Setup
 ### Installation
