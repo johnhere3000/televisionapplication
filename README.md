@@ -38,6 +38,13 @@ playwright install-deps
 
 You can use the following command to run the app
 ```
-gunicorn -b 0.0.0.0:8000 --timeout 3000 -e DATADIR=!!Change this to where your configuration file is stored!! app:app
+gunicorn -b 0.0.0.0:8000 --timeout 3000 -e DATADIR=/mydirectory/config.yml app:app
 ```
 ### Configuration
+Your config should be stored in your data directory, as `config.yml`
+**Example**
+`visible_url` is the url used in the m3u file returned by the server (ex: `visible_url: http://127.0.0.1:8000` returns `http://127.0.0.1:8000/channel/...`)
+```
+visible_url: "http://127.0.0.1:5000"
+tv_url: "https://thetvapp.to"
+```
