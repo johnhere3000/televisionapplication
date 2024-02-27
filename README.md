@@ -7,7 +7,7 @@
 version: "3"
 services:
   televisionapplication:
-    image: placeholder
+    image: ghcr.io/gelvetica/televisionapplication:main
     container_name: televisionapplication
     restart: 'unless-stopped'
     ports:
