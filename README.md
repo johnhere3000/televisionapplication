@@ -1,6 +1,7 @@
 # Television Application
 > Returns HLS stream links for thetvapp.to
-
+## Usage
+You can access the m3u at `/channels.m3u` (ex `http://127.0.0.1:8000/channels.m3u`)
 ## Setup
 ### Installation
 #### Docker Compose
