@@ -92,7 +92,7 @@ token.refresh()
 def fullm3u():
     m3u = "#EXTM3U"
     for i, value in channels.items():
-        m3u += "\n#EXTINF:-1 tvg-chno=\"%s\", %s\n%s/channel/%s" % (str(list(channels.keys()).index(i) + 1), i, config["visible_url"], value)
+        m3u += "\n#EXTINF:-1 tvg-chno=\"%s\",%s\n%s/channel/%s" % (str(list(channels.keys()).index(i) + 1), i, config["visible_url"], value)
     return(m3u)
 @app.route("/channel/<channel>")
 def appchannel(channel):
