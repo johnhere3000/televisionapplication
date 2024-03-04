@@ -5,6 +5,8 @@ import urllib
 import json
 import os
 import yaml
+import time
+import datetime
 from flask import Flask
 from flask import redirect
 
@@ -17,74 +19,67 @@ with open(os.path.join(datadir, "config.yml"), 'r') as file:
 
 class TokenError(Exception):
     pass
+class BlockedChannelError(Exception):
+    pass
 
 class Tokensniffer:
-    def __init__(self):
+    def __init__(self, page):
         self.token = None
+        self.page = page
     def refresh(self):
         with sync_playwright() as p:
-            browser = p.chromium.launch()
+            browser = p.firefox.launch(headless=True)
             page = browser.new_page()
             page.on("request", self.onRequest)
-            page.goto(urllib.parse.urljoin(config["tv_url"] ,"/tv/fox-news-channel-live-stream/"))
+            page.goto(urllib.parse.urljoin(config["tv_url"] , "/tv/" + self.page + "/"))
             browser.close()
     def onRequest(self, request):
-        if "/token/" in request.url:
-            self.token = request.post_data_json["password"]
-            print("new token: " + self.token)
+        streamregex = "/hls/([^\_]*).m3u8"
+        print(request.url)
+        if re.search(streamregex, request.url) != None:
+            self.token = request.url
+            print("new token: " + str(self.token))
         else:
             return False
 
 def listChannels():
     res = {}
-    channelListRegex = "<a class=\"list-group-item\" href=\"(.*)\">(.*)</a>"
-    streamIdRegex = "<div id=\"stream_name\" stream-name=\"(.*)\"></div>"
+    channelListRegex = "<a class=\"list-group-item\" href=\"/tv/(.*)/\">(.*)</a>"
     indexHTML = requests.get(config["tv_url"]).text
     for line in indexHTML.splitlines():
         search = re.search(channelListRegex, line)
         if search == None:
             continue
         name = search.group(2)
-        streamHTML = requests.get(urllib.parse.urljoin(config["tv_url"], search.group(1))).text
-        streamId = None
-        for line in streamHTML.splitlines():
-            search = re.search(streamIdRegex, line)
-            if search == None:
-                continue
-            streamId = search.group(1)            
-            break
-        if streamId != None:
-            res[name.replace("&amp;", "&")] = streamId
+        url = search.group(1)
+        res[name.replace("&amp;", "&")] = url
     return res
 
-def getStream(chid, token):
-    if chid not in channels.values():
-        raise KeyError()
-    # 1st request to get cookies and x-csrf token.
-    r1 = requests.get(config["tv_url"])
-    # the csrf token
-    csrftoken = re.findall('csrf\-token"\s*content\s*=\s*"([^"]+)"',r1.text,re.DOTALL)[0]
-    # final request to api with the cookie and token.
-    r2 = requests.post(urllib.parse.urljoin(config["tv_url"], "/token/" + chid), cookies=r1.cookies, json={"password":token}, headers={"Content-Type": "application/json","X-Csrf-Token":csrftoken})
-    if r2.status_code != 200:
-        raise TokenError("Invalid token")
-    try:
-        json_object = json.loads(r2.text)
-        print("res was json")
-        return r2.json()[-1]
-    except ValueError as e:
-        print ("res was string") 
-        print(r2.text)
-        r3 = requests.get(r2.text)
-        for line in r3.text.splitlines():
-            if line.startswith("#"):
-                continue
-            if "_high.m3u8" in line:
-                return urllib.parse.urljoin(r2.text, line)
+def getStreamUrl(page):
+    token = Tokensniffer(page)
+    token.refresh()
+    return token.token
 
+def getStream(page):
+    if page not in channels.values():
+        raise KeyError()
+    if page not in streams.keys():
+        streams[page] = getStreamUrl(page)
+    if streams[page] == None:
+        raise BlockedChannelError
+    r3 = requests.get(streams[page])
+    if r3.status_code != 200:
+        raise TokenError("Invalid or Expired token")
+    for line in r3.text.splitlines():
+        if line.startswith("#"):
+            continue
+        if "_high.m3u8" in line:
+            return urllib.parse.urljoin(streams[page], line)
+#token = Tokensniffer("fox-news-channel-live-stream")
+#token.refresh()
 channels = listChannels()
-token = Tokensniffer()
-token.refresh()
+streams = {}
+
 
 
 
@@ -97,11 +92,13 @@ def fullm3u():
 @app.route("/channel/<channel>")
 def appchannel(channel):
     try:
-        res = getStream(channel, token.token)
+        res = getStream(channel)
         return redirect(res)
     except TokenError:
-        print("token invalid, requesting new one")
-        token.refresh()
-        return redirect(getStream(channel, token.token))
+        streams[channel] = getStreamUrl(channel)
+        res = getStream(channel)
+        return redirect(res)
+    except BlockedChannelError:
+        return ("Channel is blocked", 403) 
     except KeyError:
-        return ("Channel does not exist, or is blocked.", 404)
+        return ("Channel does not exist", 404)
