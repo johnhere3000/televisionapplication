@@ -34,7 +34,7 @@ class Tokensniffer:
             page.goto(urllib.parse.urljoin(config["tv_url"] , "/tv/" + self.page + "/"))
             browser.close()
     def onRequest(self, request):
-        streamregex = "/hls/([^\_]*).m3u8"
+        streamregex = "/live/streams/([^\_]*).m3u8"
         print(request.url)
         if re.search(streamregex, request.url) != None:
             self.token = request.url
