@@ -24,7 +24,7 @@ class BlockedChannelError(Exception):
 
 class Tokensniffer:
     def __init__(self, page):
-        self.token = None
+        self.token = []
         self.page = page
     def refresh(self):
         with sync_playwright() as p:
@@ -34,11 +34,11 @@ class Tokensniffer:
             page.goto(urllib.parse.urljoin(config["tv_url"] , "/tv/" + self.page + "/"))
             browser.close()
     def onRequest(self, request):
-        streamregex = "/live/streams/([^\_]*).m3u8"
+        streamregex = "/live/([^\_]*).m3u8"
         print(request.url)
         if re.search(streamregex, request.url) != None:
-            self.token = request.url
-            print("new token: " + str(self.token))
+            self.token.append(request.url)
+            print("new token: " + request.url)
         else:
             return False
 
@@ -67,14 +67,10 @@ def getStream(page):
         streams[page] = getStreamUrl(page)
     if streams[page] == None:
         raise BlockedChannelError
-    r3 = requests.get(streams[page])
+    r3 = requests.get(streams[page][0])
     if r3.status_code != 200:
         raise TokenError("Invalid or Expired token")
-    for line in r3.text.splitlines():
-        if line.startswith("#"):
-            continue
-        if "_high.m3u8" in line:
-            return urllib.parse.urljoin(streams[page], line)
+    return streams[page][0]
 #token = Tokensniffer("fox-news-channel-live-stream")
 #token.refresh()
 channels = listChannels()
