@@ -70,6 +70,11 @@ def getStream(page):
     r3 = requests.get(streams[page][0])
     if r3.status_code != 200:
         raise TokenError("Invalid or Expired token")
+    for line in r3.text.splitlines():
+        if line.startswith("#"):
+            continue
+        if "_high" in line:
+            return urllib.parse.urljoin(streams[page][0], line)
     return streams[page][0]
 #token = Tokensniffer("fox-news-channel-live-stream")
 #token.refresh()
