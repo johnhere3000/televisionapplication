@@ -10,6 +10,8 @@ import datetime
 from flask import Flask
 from flask import redirect
 
+import time
+
 app = Flask(__name__)
 
 
@@ -32,6 +34,8 @@ class Tokensniffer:
             page = browser.new_page()
             page.on("request", self.onRequest)
             page.goto(urllib.parse.urljoin(config["tv_url"] , "/tv/" + self.page + "/"))
+            # Wait 10 seconds to ensure cloudflare challenge completes
+            time.sleep(10)
             browser.close()
     def onRequest(self, request):
         streamregex = "/([^\_]*).m3u8"
@@ -65,10 +69,12 @@ def getStream(page):
         raise KeyError()
     if page not in streams.keys():
         streams[page] = getStreamUrl(page)
-    if streams[page] == None:
+    if streams[page] == None or streams[page] == []:
+        del streams[page]
         raise BlockedChannelError
     r3 = requests.get(streams[page][0])
     if r3.status_code != 200:
+        del streams[page]
         raise TokenError("Invalid or Expired token")
     for line in r3.text.splitlines():
         if line.startswith("#"):
@@ -96,10 +102,9 @@ def appchannel(channel):
         res = getStream(channel)
         return redirect(res)
     except TokenError:
-        streams[channel] = getStreamUrl(channel)
         res = getStream(channel)
         return redirect(res)
     except BlockedChannelError:
-        return ("Channel is blocked", 403) 
+        return ("Channel is blocked, or Cloudflare verification failed.", 403)
     except KeyError:
         return ("Channel does not exist", 404)
